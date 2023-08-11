@@ -1,0 +1,109 @@
+{% load custom_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Mode</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
+</head>
+<body class="bg-light">
+
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="w-50">
+        <!-- Question Card -->
+        <form id="answerForm">
+        {% csrf_token %}
+            <div class="card shadow-lg mb-4">
+                <div class="card-header">
+                    <!-- Topic Dropdown -->
+                    <select class="form-select" id="topicSelect">
+                        {% for topic in topics %}
+                            <option value="{{ topic.id }}">{{ topic.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="card-body">
+                    <!-- Question -->
+                    <h5 class="card-title mb-4">{{ question.text }}</h5>
+                    <!-- Answers -->
+                    {% for answer in displayed_answers %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="answer{{ answer.id }}" name="answers" value="{{ answer.id }}">
+                            <label class="form-check-label" for="answer{{ answer.id }}">{{ answer.text }}</label>
+                        </div>
+                    {% endfor %}
+                    {% for i in displayed_answers|length|add:"1"|sequence:4 %}
+                        <div class="form-check mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary">Generate</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </form>
+        <!-- Buttons -->
+        <div class="d-flex justify-content-between">
+            <button class="btn btn-primary" id="answerBtn">Answer</button>
+            <a href="{% url 'study_mode_question' question.id|add:"1" %}" class="btn btn-secondary" id="nextQuestionBtn" disabled>Next Question</a>
+        </div>
+    </div>
+</div>
+
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    $("#answerBtn").click(function(e) {
+        e.preventDefault();
+
+        let selectedAnswers = [];
+        $("input[type=checkbox]:checked").each(function() {
+            selectedAnswers.push($(this).val());
+        });
+
+        $.ajax({
+            url: "/quiz/check_answer/{{ question.id }}/",
+            type: "POST",
+            data: {
+                'answers[]': selectedAnswers,
+                'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(data) {
+                // Clear previous styles
+                    $(".form-check-input").each(function() {
+                        var answer_id = parseInt($(this).val());
+                        var isChecked = $(this).prop("checked");
+
+                        // Correct answer
+                        if (data.correct_answers.includes(answer_id)) {
+                            if (isChecked) {
+                                $(this).siblings("label").css("color", "green");   // Correct and Checked
+                            } else {
+                                $(this).siblings("label").css("color", "red");     // Correct and Not Checked
+                            }
+                        }
+                        // Wrong answer
+                        else {
+                            if (isChecked) {
+                                $(this).siblings("label").css("color", "red");     // Wrong and Checked
+                            } else {
+                                $(this).siblings("label").css("color", "green");   // Wrong and Not Checked
+                            }
+                        }
+                    });
+
+
+                alert("Your score for this question: " + data.score.toFixed(2));
+                $("#nextQuestionBtn").removeAttr("disabled");
+            }
+        });
+    });
+});
+</script>
+
+<!-- Bootstrap JS and Popper.js for Bootstrap's JavaScript components -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-PPfZ9GZ+ioZl9f2Df1f7jGd/J7l5Xe2r4l5Xmv3PAaSA5DZT+4eRTD+AVdKLjfP5" crossorigin="anonymous"></script>
+
+</body>
+</html>
